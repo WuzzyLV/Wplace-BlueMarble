@@ -632,6 +632,11 @@ export default class Overlay {
       }
       document.body.style.userSelect = '';
       iMoveThings.classList.remove('dragging');
+      
+      GM_setValue('bmOverlayPosition', JSON.stringify({
+        x: currentX,
+        y: currentY
+      }));
     };
 
     // Mouse down - start dragging
@@ -671,6 +676,73 @@ export default class Overlay {
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('touchend', endDrag);
     document.addEventListener('touchcancel', endDrag);
+  }
+
+  /** Applies saved position to the overlay element.
+   * This method loads the saved position from storage and applies it to the overlay.
+   * It also ensures the overlay stays within viewport boundaries with padding.
+   * @param {string} overlaySelector - The CSS selector for the overlay element
+   * @since 0.0.0
+   */
+  applySavedPosition(overlaySelector) {
+    try {
+      const savedPosition = JSON.parse(GM_getValue('bmOverlayPosition', '{}'));
+      
+      if (savedPosition.x !== undefined && savedPosition.y !== undefined) {
+        const overlay = document.querySelector(overlaySelector?.[0] == '#' ? overlaySelector : '#' + overlaySelector);
+        
+        if (overlay) {
+          // Get viewport dimensions
+          const viewportWidth = window.innerWidth;
+          const viewportHeight = window.innerHeight;
+          
+          // Get overlay dimensions - use computed style if getBoundingClientRect gives 0
+          let overlayWidth = overlay.offsetWidth;
+          let overlayHeight = overlay.offsetHeight;
+          
+          // If dimensions are still 0, try getBoundingClientRect
+          if (overlayWidth === 0 || overlayHeight === 0) {
+            const rect = overlay.getBoundingClientRect();
+            overlayWidth = rect.width;
+            overlayHeight = rect.height;
+          }
+          
+          // If we still can't get dimensions, use reasonable defaults
+          if (overlayWidth === 0) overlayWidth = 300; // Default overlay width
+          if (overlayHeight === 0) overlayHeight = 400; // Default overlay height
+          
+          // Define padding from viewport edges
+          const padding = 20;
+          
+          // Calculate boundary limits
+          const minX = padding;
+          const minY = padding;
+          const maxX = Math.max(minX, viewportWidth - overlayWidth - padding);
+          const maxY = Math.max(minY, viewportHeight - overlayHeight - padding);
+          
+          // Constrain the saved position within boundaries
+          let constrainedX = Math.max(minX, Math.min(maxX, savedPosition.x));
+          let constrainedY = Math.max(minY, Math.min(maxY, savedPosition.y));
+          
+          // Apply the constrained position using CSS transform
+          overlay.style.transform = `translate(${constrainedX}px, ${constrainedY}px)`;
+          overlay.style.left = '0px';
+          overlay.style.top = '0px';
+          overlay.style.right = '';
+          
+          // If position was constrained, save the corrected position
+          if (constrainedX !== savedPosition.x || constrainedY !== savedPosition.y) {
+            GM_setValue('bmOverlayPosition', JSON.stringify({
+              x: constrainedX,
+              y: constrainedY
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      // If there's any error loading the position, silently continue with default position
+      console.warn(`${this.name}: Could not load saved overlay position:`, error);
+    }
   }
 
   /** Handles status display.

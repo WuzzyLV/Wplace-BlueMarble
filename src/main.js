@@ -241,7 +241,7 @@ function observeBlack() {
  * @since 0.58.3
  */
 function buildOverlayMain() {
-  let isMinimized = false; // Overlay state tracker (false = maximized, true = minimized)
+  let isMinimized = JSON.parse(GM_getValue('bmOverlayMinimized', 'false')); // Overlay state tracker (false = maximized, true = minimized)
   
   overlayMain.addDiv({'id': 'bm-overlay', 'style': 'top: 10px; right: 75px;'})
     .addDiv({'id': 'bm-contain-header'})
@@ -438,6 +438,9 @@ function buildOverlayMain() {
               'Blue Marble Icon - Minimized (Click to maximize)' : 
               'Blue Marble Icon - Maximized (Click to minimize)';
             
+            // Save the current state to storage
+            GM_setValue('bmOverlayMinimized', JSON.stringify(isMinimized));
+            
             // No status message needed - state change is visually obvious to users
           });
         }
@@ -541,6 +544,111 @@ function buildOverlayMain() {
       .buildElement()
     .buildElement()
   .buildOverlay(document.body);
+  
+  applyInitialOverlayState(isMinimized);
+  
+  setTimeout(() => {
+    overlayMain.applySavedPosition('bm-overlay');
+  }, 100);
+  
+  window.addEventListener('resize', () => {
+    overlayMain.applySavedPosition('bm-overlay');
+  });
+}
+
+/** Applies the initial overlay state based on saved preferences.
+ * This function replicates the toggle logic but without the toggle action,
+ * ensuring the overlay loads in the user's preferred state.
+ * @param {boolean} shouldBeMinimized - Whether the overlay should be minimized
+ * @since 0.0.0
+ */
+function applyInitialOverlayState(shouldBeMinimized) {
+  if (!shouldBeMinimized) return; // If maximized, no changes needed (default state)
+  
+  // Get all the DOM elements we need to manipulate
+  const overlay = document.querySelector('#bm-overlay');
+  const header = document.querySelector('#bm-contain-header');
+  const dragBar = document.querySelector('#bm-bar-drag');
+  const coordsContainer = document.querySelector('#bm-contain-coords');
+  const coordsButton = document.querySelector('#bm-button-coords');
+  const createButton = document.querySelector('#bm-button-create');
+  const enableButton = document.querySelector('#bm-button-enable');
+  const disableButton = document.querySelector('#bm-button-disable');
+  const coordInputs = document.querySelectorAll('#bm-contain-coords input');
+  const img = document.querySelector('#bm-contain-header img');
+  
+  // Define elements that should be hidden in minimized state
+  const elementsToToggle = [
+    '#bm-overlay h1',                    // Main title "Blue Marble"
+    '#bm-contain-userinfo',              // User information section (username, droplets, level)
+    '#bm-overlay hr',                    // Visual separator lines
+    '#bm-contain-automation > *:not(#bm-contain-coords)', // Automation section excluding coordinates
+    '#bm-input-file-template',           // Template file upload interface
+    '#bm-contain-buttons-action',        // Action buttons container
+    `#${overlayMain.outputStatusId}`     // Status log textarea for user feedback
+  ];
+  
+  // Hide all toggleable elements
+  elementsToToggle.forEach(selector => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach(element => {
+      element.style.display = 'none';
+    });
+  });
+  
+  // Apply minimized state styling
+  if (coordsContainer) {
+    coordsContainer.style.display = 'none';
+  }
+  
+  if (coordsButton) {
+    coordsButton.style.display = 'none';
+  }
+  
+  if (createButton) {
+    createButton.style.display = 'none';
+  }
+
+  if (enableButton) {
+    enableButton.style.display = 'none';
+  }
+
+  if (disableButton) {
+    disableButton.style.display = 'none';
+  }
+  
+  // Hide all coordinate input fields
+  coordInputs.forEach(input => {
+    input.style.display = 'none';
+  });
+  
+  // Apply fixed dimensions for minimized state
+  if (overlay) {
+    overlay.style.width = '60px';
+    overlay.style.height = '76px';
+    overlay.style.maxWidth = '60px';
+    overlay.style.minWidth = '60px';
+    overlay.style.padding = '8px';
+  }
+  
+  // Apply icon positioning for minimized state
+  if (img) {
+    img.style.marginLeft = '3px';
+    img.alt = 'Blue Marble Icon - Minimized (Click to maximize)';
+  }
+  
+  // Configure header layout for minimized state
+  if (header) {
+    header.style.textAlign = 'center';
+    header.style.margin = '0';
+    header.style.marginBottom = '0';
+  }
+  
+  // Ensure drag bar remains visible and properly spaced
+  if (dragBar) {
+    dragBar.style.display = '';
+    dragBar.style.marginBottom = '0.25em';
+  }
 }
 
 function buildOverlayTabTemplate() {
